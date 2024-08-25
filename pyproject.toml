@@ -1,0 +1,17 @@
+[tool.poetry]
+name = "ansible-okd"
+version = "0.1.0"
+description = ""
+authors = ["Danilo Nascimento <daconnas.dcn@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+ansible = "^10.3.0"
+boto3 = "^1.35.4"
+botocore = "^1.35.4"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

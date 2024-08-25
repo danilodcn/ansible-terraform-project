@@ -1,0 +1,19 @@
+- name: All hosts
+  hosts: all
+  remote_user: ubuntu
+  tasks:
+    - name: Ping all
+      ansible.builtin.ping:
+
+    - name: Print architecture variables
+      ansible.builtin.debug:
+        msg: "Architecture: {{ ansible_architecture }}, Codename: {{ ansible_lsb.codename }}"
+
+    - name: Get uptime information
+      ansible.builtin.shell: /usr/bin/uptime
+      register: result
+
+    - name: Print return information from the previous task
+      ansible.builtin.debug:
+        var: result[msg]
+        verbosity: 2

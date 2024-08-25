@@ -1,0 +1,6 @@
+plugin: amazon.aws.aws_ec2
+
+profile: default
+
+regions:
+- us-east-1

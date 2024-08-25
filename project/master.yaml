@@ -1,0 +1,84 @@
+- hosts: tag_WorkerType_master
+  become: true
+  remote_user: ubuntu
+  tasks:
+    - name: install curl
+      apt:
+        name: curl
+        state: present
+        force: yes # allow downgrades
+    - name: install wget
+      apt:
+        name: wget
+        state: present
+        force: yes # allow downgrades
+    - name: install Kubectl
+      apt:
+        name: kubectl=1.29.*
+        state: present
+        force: yes # allow downgrades
+
+    - name: install Helm
+      shell: |
+        curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+        chmod 700 get_helm.sh
+        ./get_helm.sh
+
+    - name: configuring the container runtime including its cgroup driver
+      blockinfile:
+        path: /etc/kubernetes/kubeadm-config.yaml
+        create: true
+        block: |
+             kind: ClusterConfiguration
+             apiVersion: kubeadm.k8s.io/v1beta3
+             networking:
+               podSubnet: "10.244.0.0/16"
+             controlPlaneEndpoint: 44.220.183.236:6443
+             ---
+             kind: KubeletConfiguration
+             apiVersion: kubelet.config.k8s.io/v1beta1
+             runtimeRequestTimeout: "15m"
+             cgroupDriver: "systemd"
+             systemReserved:
+               cpu: 100m
+               memory: 350M
+             kubeReserved:
+               cpu: 100m
+               memory: 50M
+             enforceNodeAllocatable:
+             - pods
+
+    - name: initialize the cluster (this could take some time)
+      shell: kubeadm init --config /etc/kubernetes/kubeadm-config.yaml >> cluster_initialized.log
+      args:
+        chdir: /home/ubuntu
+        creates: cluster_initialized.log
+
+    - name: create .kube directory
+      become_user: ubuntu
+      file:
+        path: $HOME/.kube
+        state: directory
+        mode: 0755
+
+    - name: copy admin.conf to user's kube config
+      copy:
+        src: /etc/kubernetes/admin.conf
+        dest: /home/ubuntu/.kube/config
+        remote_src: yes
+        owner: ubuntu
+
+    - name: Create script
+      blockinfile:
+        path: /etc/kubernetes/configure-k8s.sh
+        create: true
+        block: |
+          kubectl apply -f https://raw.githubusercontent.com/flannel-io/flannel/master/Documentation/kube-flannel.yml >> pod_network_setup.log
+          kubectl apply -f https://raw.githubusercontent.com/rancher/local-path-provisioner/master/deploy/local-path-storage.yaml >> local_path_storage_class_setup.log
+          kubectl patch storageclass local-path -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
+
+    - name: Execute configuration script
+      become_user: ubuntu
+      shell: sh /etc/kubernetes/configure-k8s.sh
+      args:
+        chdir: $HOME
